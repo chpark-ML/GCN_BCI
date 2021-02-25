@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="d054866c-c98e-4e26-a980-54eb4e61074b" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-    </list>
+    <list default="true" id="d054866c-c98e-4e26-a980-54eb4e61074b" name="Default" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -36,11 +34,23 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="network.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="network.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/network.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="-1152">
-              <caret line="44" column="64" lean-forward="true" selection-start-line="44" selection-start-column="64" selection-end-line="44" selection-end-column="64" />
+              <caret line="116" column="33" selection-start-line="116" selection-start-column="32" selection-end-line="116" selection-end-column="33" />
+              <folding>
+                <element signature="e#0#12#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="network.py" pinned="false" current-in-tab="true">
+        <entry file="file://E:/200805_backup/대학원/BCI/code_GCN/GCN_v2_backup/181222_freq_GCN/network.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="270">
+              <caret line="30" column="45" selection-start-line="30" selection-start-column="45" selection-end-line="30" selection-end-column="45" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
@@ -70,7 +80,7 @@
   <component name="NodePackageJsonFileManager">
     <packageJsonPaths />
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
+  <component name="ProjectFrameBounds" extendedState="7">
     <option name="x" value="337" />
     <option name="y" value="-13" />
     <option name="width" value="974" />
@@ -128,7 +138,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-8" y="-8" width="1936" height="1056" extended-state="6" />
+    <frame x="-8" y="-8" width="1936" height="1056" extended-state="7" />
     <editor active="true" />
     <layout>
       <window_info anchor="bottom" id="TODO" order="6" />
@@ -254,10 +264,60 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://E:/200805_backup/대학원/BCI/code_GCN/GCN_v2_backup/190121_timepoint/network.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-3060">
+          <caret line="34" column="25" lean-forward="true" selection-start-line="34" selection-start-column="25" selection-end-line="34" selection-end-column="25" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://E:/200805_backup/대학원/BCI/code_GCN/GCN_v2_backup/190128_excel_updated/network.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-90">
+          <caret line="73" column="37" lean-forward="true" selection-start-line="73" selection-start-column="37" selection-end-line="73" selection-end-column="37" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://E:/200805_backup/대학원/BCI/code_GCN/GCN_v2_backup/181219_freq_GCN/network.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1098">
+          <caret line="14" column="48" lean-forward="true" selection-start-line="14" selection-start-column="48" selection-end-line="14" selection-end-column="48" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://E:/200805_backup/대학원/BCI/code_GCN/GCN_v2_backup/181218_baseline/network.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-450">
+          <caret line="5" lean-forward="true" selection-start-line="5" selection-end-line="5" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/network.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-1152">
-          <caret line="44" column="64" lean-forward="true" selection-start-line="44" selection-start-column="64" selection-end-line="44" selection-end-column="64" />
+          <caret line="116" column="33" selection-start-line="116" selection-start-column="32" selection-end-line="116" selection-end-column="33" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://E:/200805_backup/대학원/BCI/code_GCN/GCN_v2_backup/181222_freq_GCN/network.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="270">
+          <caret line="30" column="45" selection-start-line="30" selection-start-column="45" selection-end-line="30" selection-end-column="45" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
           </folding>

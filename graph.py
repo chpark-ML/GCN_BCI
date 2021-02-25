@@ -7,19 +7,36 @@ import scipy.spatial.distance
 import numpy as np
 import tensorflow as tf
 
-def distance_scipy_spatial(z, k=4, metric='euclidean', thresh = 0):
+def distance_scipy_spatial(z, k=4, metric='euclidean'):
     """Compute exact pairwise distances."""
     d = scipy.spatial.distance.pdist(z, metric)
     d = scipy.spatial.distance.squareform(d)
-
-    # Calculate the maximum distance and set the threshold
-    # dist_max = np.amax(d) # float64
-    # thresh = dist_max / 2 # float64
-
     # k-NN graph.
     idx = np.argsort(d)[:, 1:k+1]
     d.sort()
     d = d[:, 1:k+1]
+
+    # TODO: diagonal weight
+    # idx = np.argsort(d)[:, :k ]
+    # d.sort()
+    # d = d[:, :k ]
+
+
+    # d = scipy.spatial.distance.pdist(z, metric)
+    # d = scipy.spatial.distance.squareform(d)
+    # idx = np.argsort(-d)[:, :k]
+    # d = -np.sort(-d)
+    # d = d[:, :k]
+
+    return d, idx
+
+def distance_scipy_spatial_corr(z, k=4, metric='correlation'):
+    """Compute exact pairwise distances."""
+    d = scipy.spatial.distance.pdist(z, metric)
+    d = scipy.spatial.distance.squareform(d)
+    idx = np.argsort(-d)[:, :k]
+    d = -np.sort(-d)
+    d = d[:, :k]
 
     return d, idx
 
@@ -33,14 +50,6 @@ def adjacency(dist, idx):
     # Weights.
     sigma2 = np.mean(dist[:, -1])**2
     dist = np.exp(- dist**2 / sigma2)
-
-    """Calculate the minimum distance and make them zero"""
-    dist_min = np.amin(dist) # float64
-    row_dist, col_dist = dist.shape
-    for i in range(row_dist):
-        for j in range (col_dist):
-            if dist[i][j] == dist_min :
-                dist[i][j] = 0
 
     # Weight matrix.
     I = np.arange(0, M).repeat(k)
@@ -101,12 +110,11 @@ def laplacian_tf(W, normalized=True):
         # D = scipy.sparse.diags(d.A.squeeze(), 0)
         # I = scipy.sparse.identity(d.size, dtype=W.dtype)
         # L = I - D * W * D
-        tf.add(D ,tf.constant(np.spacing(np.array(0, np.float32))))
-        # D_ = 1.0 / tf.sqrt(D)
-        D_ = tf.divide(1.0 , tf.sqrt(D))
+
+        D_ = 1.0 / tf.sqrt(D)
         D_ = tf.diag(D_)
         I = tf.eye(num_rows=N[0], num_columns=N[1])
-        L = tf.subtract(I ,tf.matmul(D_,tf.matmul(W,D_)))
+        L = I - tf.matmul(D_,tf.matmul(W,D_))
 
     # assert np.abs(L - L.T).mean() < 1e-9
     # assert type(L) is scipy.sparse.csr.csr_matrix
@@ -163,10 +171,8 @@ def rescale_tf_L(L, lmax=2):
     # I = tf.identity(L)
     I = tf.eye(num_rows=M[0])
 
-    # L /= lmax / 2
-    tf.divide(L, lmax / 2)
-    tf.subtract(L, I)
-    # L -= I
+    L /= lmax / 2
+    L -= I
     return L
 
 
