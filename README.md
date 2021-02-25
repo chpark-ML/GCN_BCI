@@ -8,5 +8,5 @@
  - The electronics can be considered as **nodes** and the interaction (**edge**) have been defined through coordinated montage of electronics.
  - Spectral feature of EEG signal have been took as input in this experiments.
 
-==========
+## Overall Framework
 <img src="./img/description.png" width="100%" height="100%" title="Description of Overall Framework" alt="Framework"></img>
