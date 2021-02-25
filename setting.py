@@ -1,6 +1,6 @@
 ## data_path
-data_path = "D:/BCI_Competition_IV_IIa/separated_class"
-# data_path = "/home/chpark/data/BCI_Competition_IV_IIa"
+# data_path = "D:/BCI_Competition_IV_IIa/separated_class"
+data_path = "/home/chpark/data"
 ## save_path
 root_dir = "./experiments"
 exp_dir = "/exp"
@@ -10,11 +10,11 @@ exp_dir = "/exp"
 ## setting
 sbj = 1
 n_train = 60
-eval_frequency = 200
+eval_frequency = 100
 
 ## parameters
 batch_size = 64
-num_epochs = 50
+num_epochs = 30
 learning_rate = 1e-4
 stepForEveryDecay = 500
 rateForDecay = 0.98

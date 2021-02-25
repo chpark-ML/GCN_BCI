@@ -13,9 +13,9 @@ from openpyxl import Workbook
 import openpyxl
 # np.random.seed(1)
 """GPU connection"""
-# import GPUtil
-# devices = "%d" % GPUtil.getFirstAvailable(order="memory")[0]
-# os.environ["CUDA_VISIBLE_DEVICES"] = devices
+import GPUtil
+devices = "%d" % GPUtil.getFirstAvailable(order="memory")[0]
+os.environ["CUDA_VISIBLE_DEVICES"] = devices
 
 """set the exp_dir"""
 root_dir = st.root_dir
@@ -24,7 +24,7 @@ if not os.path.exists(root_dir):
 
 """num of the experiment"""
 start_exp = 1
-end_exp = 5
+end_exp = 3
 start_sbj = 1
 end_sbj = 9
 
@@ -32,6 +32,9 @@ end_sbj = 9
 wb= Workbook()
 ws1 = wb.create_sheet('exp_peak', 0)
 ws2 = wb.create_sheet('exp_selected', 1)
+# ws1 = wb.active
+# ws2 = wb.active
+# ws2.title = "exp_selected"
 
 for col in range (start_exp, end_exp+1):
     ws1.cell(row=1, column=col+1, value="exp_"+str(col))
@@ -53,11 +56,14 @@ for n_exp in range(start_exp,end_exp+1):
 
     """Set the params"""
     params = dict()
-    params['F'] = [512]  # Number of graph convolutional filters.
+    params['F'] = [256, 480]  # Number of graph convolutional filters.
     k = 3
-    params['K'] = [k]  # Polynomial orders.
-    params['M'] = [512, 64, st.n_class]  # Output dimensionality of fully connected layers.
+    params['K'] = [k, k]  # Polynomial orders.
+    params['M'] = [512, st.n_class]  # Output dimensionality of fully connected layers.
     params['regularization'] = 5e-4
+
+    params['f_stride'] = 10000
+    params['f_range'] = 37
 
     """variable for result of each sbject"""
     sum_peak = 0
@@ -66,6 +72,17 @@ for n_exp in range(start_exp,end_exp+1):
     """Loop for sbject"""
     for sbj in range(start_sbj, end_sbj + 1):
         tf.reset_default_graph()
+
+        """save the setting"""
+        tmp_dir = exp_dir
+        if not os.path.exists(tmp_dir):
+            os.makedirs(tmp_dir)
+        f_set = open(exp_dir + "/setting.txt", 'w')
+        f_set.write("min, max : {0}, {1}\n".format(st.min_freq, st.max_freq))
+        f_set.write("f_strdie : {0}\n".format(params['f_stride']))
+        f_set.write("f_range : {0}\n".format(params['f_range']))
+        f_set.close()
+
         """Initialize strings for data save and load"""
         file_train = 'train'
         file_val = 'val'
@@ -74,20 +91,37 @@ for n_exp in range(start_exp,end_exp+1):
         """load dataset, psd_welch, and save"""
         # train_data, train_label, val_data, val_label = ut.load_dataset(training=True)
         # test_data, test_label = ut.load_dataset(training=False) #(54432, 22, 512, 1), (54432, )
-        # ut.save_data(train_data, train_label, fileName=file_train)
-        # ut.save_data(val_data, val_label, fileName=file_val)
-        # ut.save_data(test_data, test_label, fileName=file_test)
+        # ut.save_processed_data(train_data, train_label, fileName= file_train)
+        # if st.n_train != 72:
+        #     ut.save_processed_data(val_data, val_label, fileName= file_val)
+        # ut.save_processed_data(test_data, test_label, fileName= file_test)
 
         """Load saved psd dataset"""
-        train_data = np.load(st.data_path +"/time" +"/dat_" + file_train + "_" + str(sbj) + ".npy")
-        train_label = np.load(st.data_path+"/time" + "/lbl_" + file_train + "_" + str(sbj) + ".npy")
+        dat_train_psd = np.load(st.data_path +"/psd" +"/dat_" + file_train + "_" + str(sbj) + ".npy")
+        lbl_train = np.load(st.data_path+"/psd" + "/lbl_" + file_train + "_" + str(sbj) + ".npy")
 
-        val_data = np.load(st.data_path +"/time"+ "/dat_" + file_val + "_" + str(sbj) + ".npy")
-        val_label = np.load(st.data_path +"/time"+ "/lbl_" + file_val + "_" + str(sbj) + ".npy")
+        dat_val_psd = np.load(st.data_path +"/psd"+ "/dat_" + file_val + "_" + str(sbj) + ".npy")
+        lbl_val = np.load(st.data_path +"/psd"+ "/lbl_" + file_val + "_" + str(sbj) + ".npy")
 
-        test_data = np.load(st.data_path +"/time"+ "/dat_" + file_test + "_" + str(sbj) + ".npy")
-        test_label = np.load(st.data_path+"/time" + "/lbl_" + file_test + "_" + str(sbj) + ".npy")
+        dat_test_psd = np.load(st.data_path +"/psd"+ "/dat_" + file_test + "_" + str(sbj) + ".npy")
+        lbl_test = np.load(st.data_path+"/psd" + "/lbl_" + file_test + "_" + str(sbj) + ".npy")
 
+        """save the PSD data as a image"""
+        # for i in range(260):
+        #     print(i)
+        #     fig = plt.figure()
+        #     plt.imshow(np.asarray(dat_train_psd[189* i + 90, :, :]), vmax= 1.0, vmin=0.0)
+        #     plt.pcolor
+        #     plt.colorbar()
+        #     # plt.show()
+        #     fig.savefig('plot/'+str(i) + "_plot.png")
+        #     plt.close(fig)
+
+        """Select the frequency interest range"""
+        dat_train_psd = dat_train_psd[:, :, st.min_freq: st.max_freq+1]
+        if st.n_train != 72:
+            dat_val_psd = dat_val_psd[:, :, st.min_freq: st.max_freq+1]
+        dat_test_psd = dat_test_psd[:, :, st.min_freq: st.max_freq+1]
 
         """Graph construction"""
         ## define the coordinate for calculating the distance between nodes
@@ -100,9 +134,9 @@ for n_exp in range(start_exp,end_exp+1):
         # A = [sparse.csr_matrix(adj)]
 
         """PlaceHolder"""
-        ph_X = tf.placeholder(dtype=tf.float32, shape=[st.batch_size, train_data.shape[1], train_data.shape[2], 1])
+        ph_X = tf.placeholder(dtype=tf.float32, shape=[st.batch_size, dat_train_psd.shape[1], dat_train_psd.shape[2]])
         ph_Y = tf.placeholder(dtype=tf.float32, shape=[st.batch_size])
-        ph_X_test = tf.placeholder(dtype=tf.float32, shape=[(st.n_timepoint - st.test_win_size + 1), test_data.shape[1], test_data.shape[2], 1])
+        ph_X_test = tf.placeholder(dtype=tf.float32, shape=[(st.n_timepoint - st.test_win_size + 1), dat_test_psd.shape[1], dat_test_psd.shape[2]])
         ph_Y_test = tf.placeholder(dtype=tf.float32, shape=[(st.n_timepoint - st.test_win_size + 1)])
 
         """global step"""
@@ -110,12 +144,12 @@ for n_exp in range(start_exp,end_exp+1):
 
         """training model"""
         params['reuse'] = False
-        logit, _ , loss= nt.cgcnn(input=ph_X, label=ph_Y, L=A, **params)
+        logit, _ , adj_train, loss= nt.cgcnn(input=ph_X, label=ph_Y, L=A, **params)
         variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="EEG_GCN")
 
         """test model"""
         params["reuse"] = True
-        logit_test, pred, loss_test= nt.cgcnn(input=ph_X_test,label=ph_Y_test, L=A, **params)
+        logit_test, pred, adj_test,loss_test= nt.cgcnn(input=ph_X_test,label=ph_Y_test, L=A, **params)
 
         """learning rate + optimizer"""
         stepForEveryDecay = st.stepForEveryDecay
@@ -141,25 +175,26 @@ for n_exp in range(start_exp,end_exp+1):
 
         """start train"""
         indices = collections.deque()
-        num_steps = int(st.num_epochs * train_data.shape[0] / st.batch_size)
+        num_steps = int(st.num_epochs * dat_train_psd.shape[0] / st.batch_size)
         peak_test_kappa = 0
         peak_val_kappa = 0
         selected_kappa = 0
         selected_step = 0
+        adj_previous = np.zeros(shape=(22,22), dtype=np.float32)
         for step in range(1, num_steps + 1):
             # Be sure to have used all the samples before using one a second time.
             if len(indices) < st.batch_size:
-                indices.extend(np.random.permutation(train_data.shape[0]))
+                indices.extend(np.random.permutation(dat_train_psd.shape[0]))
             idx = [indices.popleft() for i in range(st.batch_size)]
 
             ## Set the batch data
-            batch_data, batch_labels = train_data[idx, :, :], train_label[idx]
+            batch_data, batch_labels = dat_train_psd[idx, :, :], lbl_train[idx]
             if type(batch_data) is not np.ndarray:
                 batch_data = batch_data.toarray()  # convert sparse matrices
 
             """training"""
             feed_dict = {ph_X: batch_data, ph_Y: batch_labels}
-            _, loss_, currentLR = sess.run([optimizer, loss, learning_rate], feed_dict=feed_dict)
+            _, loss_, currentLR, adj_ = sess.run([optimizer, loss, learning_rate, adj_train], feed_dict=feed_dict)
 
             """summary"""
             summary = tf.Summary()
@@ -176,11 +211,11 @@ for n_exp in range(start_exp,end_exp+1):
                     prediction = np.zeros(shape=(st.n_val_trial))
                     ground_truth = np.zeros(shape=(st.n_val_trial))
                     for trials in range(0, st.n_val_trial):
-                        test_batch_x = val_data[trials * st.test_n_rolled:(trials + 1) * st.test_n_rolled, :, :]
-                        test_batch_y = val_label[trials * st.test_n_rolled:(trials + 1) * st.test_n_rolled]
+                        test_batch_x = dat_val_psd[trials * st.test_n_rolled:(trials + 1) * st.test_n_rolled, :, :]
+                        test_batch_y = lbl_val[trials * st.test_n_rolled:(trials + 1) * st.test_n_rolled]
                         pred_ = sess.run([pred], feed_dict={ph_X_test: test_batch_x})
                         pred_ = np.argmax(np.bincount(np.squeeze(np.asarray(pred_)), minlength=st.n_class), axis=-1)
-                        ground_truth[trials] = val_label[trials * st.test_n_rolled]
+                        ground_truth[trials] = lbl_val[trials * st.test_n_rolled]
                         prediction[trials] = pred_
                     ##  Accuracy
                     # print("validation Accuracy: %f, Kappa value: %f"
@@ -200,11 +235,11 @@ for n_exp in range(start_exp,end_exp+1):
                 prediction = np.zeros(shape=(st.n_test_trial))
                 ground_truth = np.zeros(shape=(st.n_test_trial))
                 for trials in range(0, st.n_test_trial):
-                    test_batch_x = test_data[trials * st.test_n_rolled:(trials + 1) * st.test_n_rolled, :, :]
-                    test_batch_y = test_label[trials * st.test_n_rolled:(trials + 1) * st.test_n_rolled]
-                    pred_  = sess.run([pred], feed_dict={ph_X_test: test_batch_x})
+                    test_batch_x = dat_test_psd[trials * st.test_n_rolled:(trials + 1) * st.test_n_rolled, :, :]
+                    test_batch_y = lbl_test[trials * st.test_n_rolled:(trials + 1) * st.test_n_rolled]
+                    pred_, adj__  = sess.run([pred, adj_test], feed_dict={ph_X_test: test_batch_x})
                     pred_ = np.argmax(np.bincount(np.squeeze(np.asarray(pred_)), minlength=st.n_class), axis=-1)
-                    ground_truth[trials] = test_label[trials * st.test_n_rolled]
+                    ground_truth[trials] = lbl_test[trials * st.test_n_rolled]
                     prediction[trials] = pred_
 
                 """Accuracy"""
@@ -237,6 +272,64 @@ for n_exp in range(start_exp,end_exp+1):
                 f.write("Selected step : {0:10.1f}\n".format(selected_step))
                 f.close()
 
+                if st.img_flag == True :
+                    """adj matrix"""
+                    adj_img = adj__
+                    fig, (ax_adj) = plt.subplots()
+                    im_adj = ax_adj.imshow(adj_img, vmin=-1.0, vmax=1.0)
+                    # plotting
+                    x = range(1,23)
+                    y = range(1,23)
+                    fig.colorbar(im_adj, orientation='vertical')
+                    ax_adj.set_xticks(np.arange(len(x)))
+                    ax_adj.set_yticks(np.arange(len(y)))
+                    ax_adj.set_xticklabels(x)
+                    ax_adj.set_yticklabels(y)
+                    plt.grid(True)
+                    plt.xlabel('channel')
+                    plt.ylabel('channel')
+                    '''Rotate the tick labels and set their alignment.'''
+                    plt.setp(ax_adj.get_xticklabels(), rotation=90, ha="right", rotation_mode="anchor")
+                    ax_adj.set_title("The adjacency matrix")
+
+                    """show the plot, save the plot"""
+                    plot_dir = exp_dir + '/plot/' + str(sbj) + '/' + 'adj'
+                    if not os.path.exists(plot_dir):
+                        os.makedirs(plot_dir)
+                    save_plot_dir = plot_dir + '/' + str(step) + '_change_adj.png'
+                    plt.savefig(save_plot_dir)
+                    plt.close('all')
+
+                    """diff matrix"""
+                    diff_img = adj__ - adj_previous
+                    fig, (ax_diff) = plt.subplots()
+                    im_adj = ax_diff.imshow(diff_img, vmin=-0.04, vmax=0.04)
+
+                    """plotting"""
+                    x = range(1, 23)
+                    y = range(1, 23)
+                    fig.colorbar(im_adj, orientation='vertical')
+                    ax_diff.set_xticks(np.arange(len(x)))
+                    ax_diff.set_yticks(np.arange(len(y)))
+                    ax_diff.set_xticklabels(x)
+                    ax_diff.set_yticklabels(y)
+                    plt.grid(True)
+                    plt.xlabel('channel')
+                    plt.ylabel('channel')
+                    '''Rotate the tick labels and set their alignment.'''
+                    plt.setp(ax_adj.get_xticklabels(), rotation=90, ha="right", rotation_mode="anchor")
+                    ax_adj.set_title("Change of the adjacency matrix")
+
+                    """show the plot, save the plot"""
+                    plot_dir = exp_dir + '/plot/' + str(sbj) + '/' + 'diff'
+                    if not os.path.exists(plot_dir):
+                        os.makedirs(plot_dir)
+                    save_diff_dir = exp_dir + '/plot/' + str(sbj) + '/' + 'diff' + '/' + str(step) + '_change_adj.png'
+                    plt.savefig(save_diff_dir)
+                    plt.close('all')
+
+                    """update the previous adjacency matrix"""
+                    adj_previous = adj__
 
         ws1.cell(row=sbj + 1, column=n_exp + 1, value="{0:10.4f}".format(peak_test_kappa))
 

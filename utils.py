@@ -117,11 +117,6 @@ def save_processed_data(input_dat, input_lbl, minFreq = 1, maxFreq =50, fileName
     np.save(st.data_path + "/psd" + "/dat_" + fileName + "_" + str(sbj), psds) ## dat_train_1
     np.save(st.data_path + "/psd"+"/lbl_" + fileName + "_" + str(sbj), input_lbl) ## lbl_train_1
 
-def save_data(input_dat, input_lbl, fileName = 'train', sbj = st.sbj):
-    # Save the preprocessing the data
-    np.save(st.data_path + "/time" + "/dat_" + fileName + "_" + str(sbj), input_dat) ## dat_train_1
-    np.save(st.data_path + "/time"+"/lbl_" + fileName + "_" + str(sbj), input_lbl) ## lbl_train_1
-
 def load_dataset_label(sbj=st.sbj):
     path = st.data_path
     n_train = st.n_train

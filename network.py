@@ -4,152 +4,186 @@ import scipy.sparse
 import numpy as np
 import os
 
-def cgcnn(input,label, L, F, K, M, regularization=0, reuse = None ):
+def cgcnn(input,label, L, F, K, M, regularization=0, reuse = None , f_stride = 1, f_range = 3):
     print('cgcnn network construction')
     regularizers = []
+    # j = 0
+    # tmp_L = []
+    # for pp in p:
+    #     tmp_L.append(L[j])
+    #     j += int(np.log2(pp)) if pp > 1 else 0
+    # L = tmp_L
+
+    """Build the computational graph of the model."""
     with tf.variable_scope("EEG_GCN") as scope:
         if reuse:
             scope.reuse_variables()
-            dropout_ = 1.0
+            dropout = 1
         else:
-            dropout_ = 0.5
+            dropout = 0.5
 
-        """The First Block of the RCL"""
-        feature_size = 64
-        nb_feature1 = feature_size / 4
+        # Rescale Laplacian and store as a TF sparse tensor. Copy to not modify the shared L.
+        # Compressed Sparse Row matrix
+        A_matrix = scipy.sparse.csr_matrix(L[0])
+        A_matrix = A_matrix.tocoo()
+        indices = np.column_stack((A_matrix.row, A_matrix.col))
+        A_sparse_tensor = tf.SparseTensor(indices, A_matrix.data, A_matrix.shape)
+        A_dense = tf.sparse_tensor_to_dense(A_sparse_tensor)
+        # init = tf.constant_initializer(A_dense)
 
-        """1"""
-        with tf.variable_scope('block1_1'):
-            w1a = _weight_variable(regularizers, [1,9,1, nb_feature1], regularization=False)
-            b1a = _bias_variable(regularizers, shape=(nb_feature1), regularization=False)
-            """convolution"""
-            conv1a = conv2d(input=input, weight=w1a, bias=b1a, padding="SAME")
-            conv1a = batch_norm(conv1a)
+        """input setting"""
+        n_batch, n_ch, n_PSD = input.get_shape()  # (64, 22, 5)
+        n_batch, n_ch, n_PSD= int(n_batch), int(n_ch), int(n_PSD)
+        n_band = int(((n_PSD - f_range)/ f_stride)) + 1
 
-        """2"""
-        with tf.variable_scope('block1_2'):
-            w1b = _weight_variable(regularizers, [1, 9, nb_feature1, nb_feature1], regularization=False)
-            b1b = _bias_variable(regularizers, shape=(nb_feature1), regularization=False)
-            conv1b = conv2d(input=conv1a, weight=w1b, bias=b1b, padding="SAME")
-            conv1b = conv1a + conv1b
+        """spectral feature"""
 
-        """3"""
-        with tf.variable_scope('block1_3'):
-            w1c = _weight_variable(regularizers, [1, 9, nb_feature1, nb_feature1], regularization=False)
-            b1c = _bias_variable(regularizers, shape=(nb_feature1), regularization=False)
-            conv1c = conv2d(input=conv1b, weight=w1c, bias=b1c, padding="SAME")
-            conv1c = conv1a + conv1c
+        with tf.variable_scope('spectral_feature_conv1'):
+            with tf.name_scope('conv1'):
+                x = tf.expand_dims(input, 3)  # 1 x M x Fin*N
+                n_feature1 = 10
+                w1a = _weight_variable(regularizers, [1, 10, 1, n_feature1], regularization = True)
+                b1a = _bias_variable(regularizers, [n_feature1], regularization=True)
+                x= conv2d(input=x, weight=w1a, bias=b1a, padding='VALID')
+                x= batch_norm(x)
+                # x = tf.reshape(x, shape=(N_tmp, M_tmp, -1))
 
-        conv1c = batch_norm(conv1c)
-        conv1c = pool_layer(conv1c)
-        conv1c = dropout(conv1c, dropout_)
+        with tf.variable_scope('spectral_feature_conv2'):
+            with tf.name_scope('conv2'):
+                # x = tf.expand_dims(input, 3)  # 1 x M x Fin*N
+                # N_tmp, M_tmp, Fin = x.get_shape()  # (64, 22, 3)
+                # N_tmp, M_tmp, Fin = int(N_tmp), int(M_tmp), int(Fin)
+                n_feature2 = 20
+                w1a = _weight_variable(regularizers, [1, 10, n_feature1, n_feature2], regularization=True)
+                b1a = _bias_variable(regularizers, [n_feature2], regularization=True)
+                # x = tf.expand_dims(x, 3)  # 1 x M x Fin*N
+                x = conv2d(input=x, weight=w1a, bias=b1a, padding='VALID')
+                x = batch_norm(x)
+                # x = tf.reshape(x, shape=(N_tmp,M_tmp,-1))
 
-        """The Second block of the RCL"""
-        nb_feature2 = feature_size / 2
-        """1"""
-        w2, b2 = get_params(name="conv2", shape=(1, 1, nb_feature1, nb_feature2), featurecnt=nb_feature2)
-        conv2 = conv2d(input=conv1c, weight=w2, bias=b2, padding="SAME")
-        conv2 = batch_norm(conv2)
+        with tf.variable_scope('spectral_feature_conv3'):
+            with tf.name_scope('conv3'):
+                # x = tf.expand_dims(input, 3)  # 1 x M x Fin*N
+                # N_tmp, M_tmp, Fin = x.get_shape()  # (64, 22, 3)
+                # N_tmp, M_tmp, Fin = int(N_tmp), int(M_tmp), int(Fin)
+                n_feature3 = 40
+                w1a = _weight_variable(regularizers, [1, 10, n_feature2, n_feature3], regularization=True)
+                b1a = _bias_variable(regularizers, [n_feature3], regularization=True)
+                # x = tf.expand_dims(x, 3)  # 1 x M x Fin*N
+                x = conv2d(input=x, weight=w1a, bias=b1a, padding='VALID')
+                x = batch_norm(x)
+                # x = tf.reshape(x, shape=(N_tmp,M_tmp,-1))
 
-        """2"""
-        w2a, b2a = get_params(name="conv2a", shape=(1, 9, nb_feature2, nb_feature2), featurecnt=nb_feature2)
-        conv2a = conv2d(input=conv2, weight=w2a, bias=b2a, padding="SAME")
-        conv2a = conv2 + conv2a
+        with tf.variable_scope('spectral_feature_conv4'):
+            with tf.name_scope('conv4'):
+                # x = tf.expand_dims(input, 3)  # 1 x M x Fin*N
+                N_tmp, M_tmp, n_psd, Fin = x.get_shape()  # (64, 22, 3)
+                N_tmp, M_tmp, n_psd, Fin = int(N_tmp), int(M_tmp), int(n_psd), int(Fin)
+                n_feature4 = 80
+                w1a = _weight_variable(regularizers, [1, 10, n_feature3, n_feature4], regularization=True)
+                b1a = _bias_variable(regularizers, [n_feature4], regularization=True)
+                x = conv2d(input=x, weight=w1a, bias=b1a, padding='VALID')
+                x = batch_norm(x)
+                x = tf.reshape(x, shape=(N_tmp,M_tmp,-1))
 
-        """3"""
-        w2b, b2b = get_params(name="conv2b", shape=(1, 9, nb_feature2, nb_feature2), featurecnt=nb_feature2)
-        conv2b = conv2d(input=conv2a, weight=w2b, bias=b2b, padding="SAME")
-        conv2b = conv2 + conv2b
+        """ 1*1 convolution"""
+        with tf.variable_scope('1_1conv_spec{0}'.format(1)):
+            with tf.name_scope('11conv'):
+                n_fout = 80
+                w2 = _weight_variable(regularizers, [1, n_feature4, n_fout], regularization = True)
+                b2 = _bias_variable(regularizers, [n_fout], regularization = True)
+                x = _conv1d(x, w2, b2)
+            with tf.name_scope('batchNorm'):
+                x = batch_norm(x)
+            with tf.variable_scope('bias_relu'):
+                x = b1relu(regularizers, x)
 
-        """4"""
-        w2c, b2c = get_params(name="conv2c", shape=(1, 9, nb_feature2, nb_feature2), featurecnt=nb_feature2)
-        conv2c = conv2d(input=conv2b, weight=w2c, bias=b2c, padding="SAME")
-        # conv2c = conv2 + conv2c
-        conv2c = batch_norm(conv2c)
-        conv2c = pool_layer(conv2c)
-        conv2c = dropout(conv2c, dropout_)
+
+        """band filtering"""
+        for j in range(n_band):
+            x = x[:,:,j*f_stride : j*f_stride + f_range]
+
+            """adj matrix"""
+            with tf.variable_scope('adj{}'.format(j)):
+                adj = tf.get_variable('matrix', initializer=A_dense)
+                # adj = A_dense
+                adj = tf.nn.relu(adj)
+                regularizers.append(tf.norm(adj, ord=1))
+                laplacian = graph.laplacian_tf(adj, normalized=True)
+                laplacian = graph.rescale_tf_L(laplacian, lmax=2)
+                laplacian = tf.nn.relu(laplacian)
+
+            """GCN filtering + 11conv"""
+            for i in range (len(F)):
+                """Chebyshev"""
+                with tf.variable_scope('conv{0}_{1}'.format(j,i)):
+                    with tf.name_scope('filter'):
+                        N_tmp, M_tmp, Fin = x.get_shape()  # (64, 22, 3)
+                        N_tmp, M_tmp, Fin = int(N_tmp), int(M_tmp), int(Fin)
+                        W = _weight_variable(regularizers, [Fin * K[i], F[i]], regularization=True)
+                        x = chebyshev5(regularizers, x, laplacian, F[i], K[i])
+                        x = tf.matmul(x, W)  # N*M x Fout
+                        x = tf.reshape(x, [N_tmp, M_tmp, F[i]])  # N x M x Fout
+                        x = batch_norm(x)
+                    with tf.name_scope('bias_relu'):
+                        x = b1relu(regularizers, x)
+
+                # """ 1*1 convolution"""
+                # with tf.variable_scope('1_1conv{0}_{1}'.format(j,i)):
+                #     with tf.name_scope('11conv'):
+                #         n_fout = F[i]
+                #         w2 = _weight_variable(regularizers, [1, F[i], n_fout], regularization = True)
+                #         b2 = _bias_variable(regularizers, [n_fout], regularization = True)
+                #         x = _conv1d(x, w2, b2)
+                #         # w2, b2 = get_params(name="11conv", shape=(1, F[4], 140), featurecnt=140)
+                #     with tf.name_scope('batchNorm'):
+                #         x = batch_norm(x)
+                #     with tf.variable_scope('bias_relu'):
+                #         x = b1relu(regularizers, x)
+
+            #concat
+            """stack the filtered features"""
+            if j == 0:
+                x_0 = tf.expand_dims(x, 3)  # 1 x M x Fin*N
+            else :
+                x = tf.expand_dims(x, 3)
+                x_0 = tf.concat([x_0, x], axis=3)
 
 
-        """The Third block of the RCL"""
-        nb_feature3 = feature_size
+        N_t, C_t, F_t, B_t   = x_0.get_shape()
+        x = tf.reshape(x_0, [N_t,C_t, F_t* B_t])  # M x Fin*N
 
-        """1"""
-        w3, b3 = get_params(name="conv3", shape=(1, 1, nb_feature2, nb_feature3), featurecnt=nb_feature3)
-        conv3 = conv2d(input=conv2c, weight=w3, bias=b3, padding="SAME")
-        conv3 = batch_norm(conv3)
+        """ 1*1 convolution"""
+        with tf.variable_scope('1_1conv{0}'.format(1)):
+            with tf.name_scope('11conv'):
+                n_fout = 512
+                w2 = _weight_variable(regularizers, [1, F_t*B_t, n_fout], regularization = True)
+                b2 = _bias_variable(regularizers, [n_fout], regularization = True)
+                x = _conv1d(x, w2, b2)
+            with tf.name_scope('batchNorm'):
+                x = batch_norm(x)
 
-        """2"""
-        w3a, b3a = get_params(name="conv3a", shape=(1, 9, nb_feature3, nb_feature3), featurecnt=nb_feature3)
-        conv3a = conv2d(input=conv3, weight=w3a, bias=b3a, padding="SAME")
-        conv3a = conv3 + conv3a
+            with tf.variable_scope('bias_relu'):
+                x = b1relu(regularizers, x)
 
-        """3"""
-        w3b, b3b = get_params(name="conv3b", shape=(1, 9, nb_feature3, nb_feature3), featurecnt=nb_feature3)
-        conv3b = conv2d(input=conv3a, weight=w3b, bias=b3b, padding="SAME")
-        conv3b = conv3 + conv3b
+        with tf.variable_scope('spatio_feature_conv1'):
+            with tf.name_scope('conv1'):
+                n_feature = 1024
+                w1a = _weight_variable(regularizers, [22, n_fout, n_feature], regularization = True)
+                b1a = _bias_variable(regularizers, [n_feature], regularization=True)
+                x = _conv1d(x, w1a, b1a)
+                x = batch_norm(x)
 
-        """4"""
-        w3c, b3c = get_params(name="conv3c", shape=(1, 9, nb_feature3, nb_feature3), featurecnt=nb_feature3)
-        conv3c = conv2d(input=conv3b, weight=w3c, bias=b3c, padding="SAME")
-        # conv3c = conv3 + conv3c
-        conv3c = batch_norm(conv3c)  # (batch, 22, 8, 64)
-        conv3c = pool_layer(conv3c)
-        conv3c = dropout(conv3c, dropout_)
 
-        # list_x = conv3c.get_shape().as_list()
-        # x = tf.reshape(conv3c, [list_x[0] , list_x[1], -1])
-
-        # """Rescale Laplacian and store as a TF sparse tensor"""
-        # A_matrix = scipy.sparse.csr_matrix(L[0])
-        # A_matrix = A_matrix.tocoo()
-        # indices = np.column_stack((A_matrix.row, A_matrix.col))
-        # A_sparse_tensor = tf.SparseTensor(indices, A_matrix.data, A_matrix.shape)
-        # A_dense = tf.sparse_tensor_to_dense(A_sparse_tensor)
-        #
-        # """Variable adj matrix"""
-        # with tf.variable_scope('adj'):
-        #     adj = tf.get_variable('matrix', initializer=A_dense)
-        #     # adj = A_dense
-        #     adj = tf.nn.relu(adj)
-        #     regularizers.append(tf.norm(adj, ord=1))
-        #     laplacian = graph.laplacian_tf(adj, normalized=True)
-        #     laplacian = graph.rescale_tf_L(laplacian, lmax=2)
-        #     laplacian = tf.nn.relu(laplacian)
-        #
-        # """GCN filtering + 11conv"""
-        # for i in range (len(F)):
-        #     """Chebyshev"""
-        #     with tf.variable_scope('conv{0}'.format(i)):
-        #         with tf.name_scope('filter'):
-        #             N_tmp, M_tmp, Fin = x.get_shape()  # (64, 22,512)
-        #             N_tmp, M_tmp, Fin = int(N_tmp), int(M_tmp), int(Fin)
-        #             W = _weight_variable(regularizers, [Fin * K[i], F[i]], regularization=True)
-        #             x = chebyshev5(regularizers, x, laplacian, F[i], K[i])
-        #             x = tf.matmul(x, W)  # N*M x Fout
-        #             x = tf.reshape(x, [N_tmp, M_tmp, F[i]])  # N x M x Fout
-        #             x = batch_norm(x)
-        #         with tf.name_scope('bias_relu'):
-        #             x = b1relu(regularizers, x)
-
-        """spatio feature extraction"""
-        n_feature = 64
-        with tf.variable_scope('spatial_feature_extraction'):
-            w1a = _weight_variable(regularizers, [22, 1, n_feature, n_feature], regularization=False)
-            b1a = _bias_variable(regularizers, [n_feature], regularization=False)
-            x = conv2d(input=conv3c, weight=w1a, bias=b1a, padding="VALID")
-            x = batch_norm(x)
-            """"""
-            w3, b3 = get_params(name="11conv", shape=(1, 1, n_feature, n_feature), featurecnt=n_feature)
-            x = conv2d(input=x, weight=w3, bias=b3, padding="SAME")
-            x = batch_norm(x)
+        # x = tf.reduce_mean(x, axis=1, keep_dims=True)
 
         """Fully connected network"""
-        _N, _C, _T, _F = x.get_shape() #(batch, 24, # of kernel2)
-        x = tf.reshape(x, [int(_N), int(_C *_T * _F)])  # N x M
+        _N, _M, _F = x.get_shape() #(batch, 24, # of kernel2)
+        x = tf.reshape(x, [int(_N), int(_M * _F)])  # N x M
         for i, _M in enumerate(M[:-1]):
             with tf.variable_scope('fc{}'.format(i + 1)):
                 x = fc(regularizers, x, _M)
-                x = tf.nn.dropout(x, dropout_)
+                x = tf.nn.dropout(x, dropout)
 
         """Logits linear layer, i.e. softmax without normalization"""
         with tf.variable_scope('logits'):
@@ -162,9 +196,9 @@ def cgcnn(input,label, L, F, K, M, regularization=0, reuse = None ):
             cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logit, labels=label))
             regularization *= tf.add_n(regularizers)
         loss = cross_entropy + regularization
+        # loss = cross_entropy
 
-    return logit, prediction, loss  # TODO: Haufe et al., 2014.
-
+    return logit, prediction, adj, loss # TODO: Haufe et al., 2014.
 
 def chebyshev5(regularizers, x, L, Fout, K):
     N, M, Fin = x.get_shape() #(64, 22, 5)
@@ -275,34 +309,3 @@ def batch_norm(data):
 # def batch_norm(input, is_training, name,momentum=0.9):
 #     return tf.layers.batch_normalization(input, training=is_training, momentum=momentum,name=name,  reuse=tf.AUTO_REUSE)
 
-def get_params(name, shape, featurecnt):
-    w = tf.get_variable(name=name + "w", shape=shape, initializer=tf.contrib.layers.xavier_initializer_conv2d(), dtype=tf.float32)
-    b = tf.Variable(initial_value=tf.constant(0.1, shape=[featurecnt], dtype=tf.float32), name=name + "b")
-    return w, b
-
-def leaky_relu(x):
-    return tf.maximum(0.2 * x, x)
-
-def conv2d(input, weight, bias, padding, strides=[1, 1, 1, 1], activation_fcn="relu"):
-    conv = tf.nn.conv2d(input=input, filter=weight, strides=strides, padding=padding)
-    if activation_fcn == "leaky_relu":
-        return leaky_relu(tf.nn.bias_add(conv, bias))
-    else:
-        return tf.nn.relu(tf.nn.bias_add(conv, bias))
-
-def batch_norm(data):
-    return tf.nn.batch_normalization(x=data, mean=0, variance=1, offset=None, scale=None, variance_epsilon=1e-8)
-
-def pool_layer(data):
-    return tf.nn.max_pool(value=data, ksize=[1, 1, 4, 1], strides=[1, 1, 4, 1], padding="VALID")
-
-def dropout(data, dropout):
-    return tf.nn.dropout(data, dropout)
-
-def fclayer(data, name, num_hidden, activation_fn="relu"):
-    num_input = data.get_shape().as_list()[-1]
-    wfc, bfc = get_params(name=name, shape=(num_input, num_hidden), featurecnt=num_hidden)
-    if activation_fn == "relu":
-        return tf.nn.relu(tf.nn.bias_add(tf.matmul(data, wfc), bfc))
-    else:
-        return tf.nn.bias_add(tf.matmul(data, wfc), bfc)
